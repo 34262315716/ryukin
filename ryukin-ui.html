@@ -1,0 +1,347 @@
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      /* --- “晨曦鎏金”白天主题 --- */
+      --bg-color: #EAE7E2;
+      --card-bg-color: rgba(248, 247, 245, 0.85);
+      --text-color: #383838;
+      --text-color-secondary: #8a8a8a;
+      --gold-color: #C5A053;
+      --gold-color-light: #EADCB3;
+      --accent-blue-color: #87CEEB;
+      --danger-color: #e74c3c;
+      --border-color: rgba(212, 175, 55, 0.25);
+      --font-family: 'KaiTi', 'STKaiti', 'Serif';
+      --border-radius: 12px;
+    }
+    .ryukin-status-card {
+      background-color: var(--card-bg-color);
+      color: var(--text-color);
+      border-color: var(--border-color);
+      transition: background-color 0.8s ease, color 0.8s ease, border-color 0.8s ease;
+      backdrop-filter: blur(12px) saturate(120%);
+      -webkit-backdrop-filter: blur(12px) saturate(120%);
+      font-family: var(--font-family);
+      padding: 15px;
+      border-radius: var(--border-radius);
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
+      position: relative;
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding-bottom: 10px; margin-bottom: 15px;
+      border-bottom: 1px solid var(--border-color);
+      transition: border-color 0.8s ease;
+    }
+    .card-header .char-name {
+      font-size: 1.6em; font-weight: bold; color: var(--gold-color);
+      text-shadow: 0 0 8px rgba(212, 175, 55, 0.5);
+      transition: color 0.8s ease, text-shadow 0.8s ease;
+    }
+    .dominion-indicator {
+      position: absolute; top: 18px; right: 15px;
+      display: none; align-items: center; background-color: rgba(231, 76, 60, 0.1);
+      padding: 4px 10px; border-radius: 15px; border: 1px solid var(--danger-color);
+      font-size: 0.8em; animation: fadeIn 0.5s;
+    }
+    .dominion-icon { margin-right: 5px; animation: pulse-red 2s infinite; }
+    .ryukin-status-card:not([data-dominion-mode="自主"]) {
+      border-color: var(--danger-color);
+    }
+    .ryukin-status-card:not([data-dominion-mode="自主"]) .dominion-indicator {
+      display: flex;
+    }
+    .tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+    .tab-btn {
+      padding: 6px 14px; background: rgba(0,0,0,0.03); border: 1px solid var(--border-color);
+      border-radius: 20px; cursor: pointer; font-size: 0.9em; color: var(--text-color-secondary);
+      transition: all 0.3s ease;
+    }
+    .tab-btn.active, .tab-btn:hover {
+      background-color: var(--gold-color); color: #fff;
+      border-color: var(--gold-color); box-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+      transform: translateY(-2px);
+    }
+    .tab-content-wrapper { padding-top: 15px; }
+    .tab-content { display: none; animation: fadeIn 0.6s ease-in-out; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    .section-title { 
+      color: var(--gold-color); font-weight: bold; margin-top: 20px; 
+      margin-bottom: 12px; border-bottom: 1px solid var(--border-color); 
+      padding-bottom: 6px; font-size: 1.1em;
+      transition: color 0.8s ease, border-color 0.8s ease;
+    }
+    .section-title:first-child { margin-top: 0; }
+    .property-grid { display: grid; gap: 10px; }
+    .grid-col-2 { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .grid-col-3 { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+
+    .property-item { 
+      background-color: rgba(0,0,0,0.05); padding: 10px 12px; border-radius: var(--border-radius);
+      display: flex; justify-content: space-between; align-items: center;
+      transition: background-color 0.8s ease;
+    }
+    .property-item.single-line { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+    .property-label { font-weight: bold; color: var(--text-color-secondary); margin-right: 10px; transition: color 0.8s ease; display: flex; align-items: center; gap: 6px; }
+    .property-value { word-break: break-all; text-align: right; }
+    .property-item.single-line .property-value { text-align: left; }
+    .progress-bar-container { width: 100%; height: 10px; background: rgba(0,0,0,0.08); border-radius: 5px; margin-top: 5px; overflow: hidden; }
+    .progress-bar, .energy-bar { height: 100%; width: 0%; background: linear-gradient(90deg, var(--gold-color-light), var(--gold-color)); border-radius: 5px; transition: width 0.8s ease; }
+    .whisper-box { margin-top: 15px; padding: 12px; border-left: 3px solid var(--gold-color); background-color: rgba(0,0,0,0.04); font-style: italic; transition: background-color 0.8s ease, border-color 0.8s ease; }
+    .ryukin-core-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 20px; align-items: center; }
+    .persona-value { color: var(--gold-color); font-weight: bold; }
+    .tattoo-status-container { display: flex; flex-direction: column; align-items: center; margin-top: 15px; }
+    .tattoo-desc { margin-top: 10px; font-style: italic; color: var(--text-color-secondary); }
+    .relation-card { background-color: rgba(0,0,0,0.05); padding: 15px; border-radius: var(--border-radius); margin-bottom: 15px; }
+    .relation-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .relation-item.full-width { flex-direction: column; align-items: flex-start; }
+    .relation-value.infinity { font-size: 1.8em; color: var(--gold-color); text-shadow: 0 0 10px var(--gold-color); }
+    .memory-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+    .memory-fragment { background-color: rgba(0,0,0,0.05); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 15px; transition: all 0.8s ease; cursor: default; }
+    .memory-fragment.locked { background-color: rgba(0,0,0,0.08); border-style: dashed; color: var(--text-color-secondary); filter: blur(1px); }
+    .memory-fragment.unlocked { border-color: var(--gold-color); box-shadow: 0 0 10px rgba(212, 175, 55, 0.3); transform: scale(1.02); }
+    .fragment-icon { font-size: 1.5em; margin-bottom: 10px; }
+    .fragment-title { font-weight: bold; color: var(--gold-color); margin-bottom: 8px; }
+    .dominion-warning { background-color: rgba(231, 76, 60, 0.1); border: 1px solid var(--danger-color); color: #e74c3c; padding: 10px; border-radius: var(--border-radius); margin-bottom: 20px; font-size: 0.9em; display: flex; align-items: center; }
+    #dominion-mode-selector label, #identity-select { background: rgba(0,0,0,0.06); padding: 8px 12px; border-radius: var(--border-radius); cursor: pointer; transition: background-color 0.3s; border: 1px solid var(--border-color); }
+    #dominion-mode-selector input[type="radio"] { margin-right: 5px; accent-color: var(--gold-color); }
+    #dominion-mode-selector label:hover { background: rgba(212, 175, 55, 0.1); }
+    
+    /* --- [新增] Secrets Tab 翻页样式 --- */
+    .secrets-pager { display: flex; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
+    .secrets-pager-btn { padding: 5px 12px; border: none; background: none; color: var(--text-color-secondary); cursor: pointer; border-radius: 8px; transition: all 0.3s ease; }
+    .secrets-pager-btn.active, .secrets-pager-btn:hover { background-color: var(--gold-color-light); color: var(--gold-color); font-weight: bold; }
+    .theme-night .secrets-pager-btn.active, .theme-night .secrets-pager-btn:hover { background-color: rgba(240, 196, 25, 0.2); }
+    .secrets-page { display: none; animation: fadeIn 0.5s; }
+    .secrets-page.active { display: block; }
+    
+    /* --- [升级] 牡丹纹身 v4.1 CSS系统 --- */
+    #peony-tattoo {
+        width: 120px; height: 120px; transform-origin: center;
+        filter: drop-shadow(0 0 3px rgba(212, 175, 55, 0));
+        transition: filter 1.5s ease;
+    }
+    .tattoo-path-template {
+        stroke: var(--gold-color); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        transition: all 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55), stroke 1.5s ease, opacity 1.5s ease;
+    }
+    #petals use {
+        transform-origin: 0 0;
+        transform: translate(var(--x, 50px), var(--y, 50px)) rotate(var(--rot, 0deg)) scale(var(--scale, 1));
+        transition: transform 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+    }
+    [data-tattoo-state="喜悦绽放"] #p1 { --x: 50px; --y: 28px; --rot: 0deg; --scale: 1; } [data-tattoo-state="喜悦绽放"] #p2 { --x: 72px; --y: 50px; --rot: 90deg; --scale: 1; } [data-tattoo-state="喜悦绽放"] #p3 { --x: 50px; --y: 72px; --rot: 180deg; --scale: 1; } [data-tattoo-state="喜悦绽放"] #p4 { --x: 28px; --y: 50px; --rot: 270deg; --scale: 1; } [data-tattoo-state="喜悦绽放"] #p5 { --x: 65px; --y: 35px; --rot: 45deg; --scale: 0.7; } [data-tattoo-state="喜悦绽放"] #p6 { --x: 65px; --y: 65px; --rot: 135deg; --scale: 0.7; } [data-tattoo-state="喜悦绽放"] #p7 { --x: 35px; --y: 65px; --rot: 225deg; --scale: 0.7; } [data-tattoo-state="喜悦绽放"] #p8 { --x: 35px; --y: 35px; --rot: 315deg; --scale: 0.7; }
+    [data-tattoo-state="静谧含苞"] #p1 { --y: 45px; --scale: 0.5; } [data-tattoo-state="静谧含苞"] #p2 { --x: 55px; --scale: 0.5; } [data-tattoo-state="静谧含苞"] #p3 { --y: 55px; --scale: 0.5; } [data-tattoo-state="静谧含苞"] #p4 { --x: 45px; --scale: 0.5; } [data-tattoo-state="静谧含苞"] #p5 { --x: 53px; --y: 47px; --scale: 0.3; } [data-tattoo-state="静谧含苞"] #p6 { --x: 53px; --y: 53px; --scale: 0.3; } [data-tattoo-state="静谧含苞"] #p7 { --x: 47px; --y: 53px; --scale: 0.3; } [data-tattoo-state="静谧含苞"] #p8 { --x: 47px; --y: 47px; --scale: 0.3; }
+    @keyframes tremble { 0%, 100% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(0.5px, -0.5px) rotate(0.2deg); } 50% { transform: translate(-0.5px, 0.5px) rotate(-0.2deg); } 75% { transform: translate(0.5px, 0.5px) rotate(0); } }
+    [data-tattoo-state="羞涩颤动"] #peony-tattoo { animation: tremble 0.3s infinite; } [data-tattoo-state="羞涩颤动"] #p1 { --y: 47px; --scale: 0.6; } [data-tattoo-state="羞涩颤动"] #p2 { --x: 53px; --scale: 0.6; } [data-tattoo-state="羞涩颤动"] #p3 { --y: 53px; --scale: 0.6; } [data-tattoo-state="羞涩颤动"] #p4 { --x: 47px; --scale: 0.6; } [data-tattoo-state="羞涩颤动"] #p5, [data-tattoo-state="羞涩颤动"] #p6, [data-tattoo-state="羞涩颤动"] #p7, [data-tattoo-state="羞涩颤动"] #p8 { --scale: 0.4; }
+    @keyframes flow-light { to { stroke-dashoffset: 0; } }
+    [data-tattoo-state="金光流转"] .tattoo-path-template { stroke-dasharray: 100; stroke-dashoffset: 1000; animation: flow-light 3s linear infinite; }
+    @keyframes pulse-fire { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } 100% { transform: scale(1); opacity: 1; } }
+    [data-tattoo-state="炽热燃烧"] #peony-tattoo { filter: drop-shadow(0 0 8px var(--gold-color)) drop-shadow(0 0 15px var(--gold-color-light)); animation: pulse-fire 1s infinite ease-in-out; } [data-tattoo-state="炽热燃烧"] .tattoo-path-template { stroke: var(--gold-color-light); } [data-tattoo-state="炽热燃烧"] #p1 { --x: 50px; --y: 28px; --rot: 0deg; --scale: 1.05; } [data-tattoo-state="炽热燃烧"] #p2 { --x: 72px; --y: 50px; --rot: 90deg; --scale: 1.05; } [data-tattoo-state="炽热燃烧"] #p3 { --x: 50px; --y: 72px; --rot: 180deg; --scale: 1.05; } [data-tattoo-state="炽热燃烧"] #p4 { --x: 28px; --y: 50px; --rot: 270deg; --scale: 1.05; } [data-tattoo-state="炽热燃烧"] #p5, [data-tattoo-state="炽热燃烧"] #p6, [data-tattoo-state="炽热燃烧"] #p7, [data-tattoo-state="炽热燃烧"] #p8 { --scale: 0.75; }
+    [data-tattoo-state="悲伤枯萎"] .tattoo-path-template { stroke: #8c733e; opacity: 0.7; } [data-tattoo-state="悲伤枯萎"] #p1 { --y: 55px; --rot: 15deg; --scale: 0.4; } [data-tattoo-state="悲伤枯萎"] #p2 { --x: 45px; --rot: 75deg; --scale: 0.4; } [data-tattoo-state="悲伤枯萎"] #p3 { --y: 45px; --rot: 165deg; --scale: 0.4; } [data-tattoo-state="悲伤枯萎"] #p4 { --x: 55px; --rot: 255deg; --scale: 0.4; } [data-tattoo-state="悲伤枯萎"] #p5, [data-tattoo-state="悲伤枯萎"] #p6, [data-tattoo-state="悲伤枯萎"] #p7, [data-tattoo-state="悲伤枯萎"] #p8 { --scale: 0.2; }
+    /* --- [结束] 牡丹纹身 v4.1 CSS系统 --- */
+
+    .minds-eye-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; pointer-events: none; transition: opacity 1.5s ease-out; overflow: hidden; border-radius: var(--border-radius); z-index: 999; }
+    .minds-eye-overlay.active { opacity: 1; pointer-events: auto; }
+    .minds-eye-overlay::before, .minds-eye-overlay::after { content: ''; position: absolute; width: 3px; height: 3px; background-color: var(--gold-color-light); border-radius: 50%; box-shadow: 0 0 8px var(--gold-color), 0 0 12px var(--gold-color-light), 0 0 16px var(--accent-blue-color); opacity: 0; transform: scale(0); }
+    .minds-eye-overlay.active::before { animation: neural-spark 2.5s ease-in-out 0s 1 forwards; }
+    .minds-eye-overlay.active::after { animation: neural-spark 2.5s ease-in-out 0.3s 1 forwards; }
+    @keyframes neural-spark { 0% { top: 10%; left: 15%; opacity: 0; transform: scale(0); } 15% { opacity: 1; transform: scale(1.2); } 40% { top: 50%; left: 80%; transform: scale(1); } 60% { top: 85%; left: 20%; opacity: 0.8; transform: scale(1.1); } 85% { top: 15%; left: 90%; transform: scale(0.8); } 100% { opacity: 0; transform: scale(0); } }
+    @keyframes pulse-red { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.6; transform: scale(1.1); } }
+
+    /* --- “午夜黑金”夜晚主题 --- */
+    .ryukin-status-card.theme-night {
+      --card-bg-color: rgba(28, 28, 45, 0.85);
+      --text-color: #e8e8f0;
+      --text-color-secondary: #a0a0b8;
+      --gold-color: #f0c419;
+      --gold-color-light: #fff2a8;
+      --border-color: rgba(240, 196, 25, 0.2);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+    }
+    .theme-night .property-item { background-color: rgba(0,0,0,0.2); }
+    .theme-night .whisper-box { background-color: rgba(0,0,0,0.2); }
+    .theme-night .relation-card { background-color: rgba(0,0,0,0.2); }
+    .theme-night .memory-fragment { background-color: rgba(0,0,0,0.2); }
+    .theme-night .tab-btn { background: none; }
+    .theme-night .tab-btn.active, .theme-night .tab-btn:hover { background-color: var(--gold-color); color: #12121c; }
+    .theme-night .dominion-warning { background-color: rgba(231, 76, 60, 0.1); color: #ffcdd2; }
+    .theme-night #dominion-mode-selector label { background: rgba(0,0,0,0.3); }
+  </style>
+</head>
+<body>
+  <div class="ryukin-status-card" data-tattoo-state="静谧含苞" data-dominion-mode="自主">
+    <div class="card-header">
+      <div class="char-name">琉金</div>
+      <div class="dominion-indicator"><span class="dominion-icon">⚜️</span><span id="dominion-mode-text">自主</span></div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-target="tab-world">🌍 世界</button>
+      <button class="tab-btn" data-target="tab-ryukin">👘 琉金</button>
+      <button class="tab-btn" data-target="tab-wardrobe">👗 穿着</button>
+      <button class="tab-btn" data-target="tab-secrets">🌸 秘密</button>
+      <button class="tab-btn" data-target="tab-relations">🔗 关系</button>
+      <button class="tab-btn" data-target="tab-wishes">🔮 愿望</button>
+      <button class="tab-btn" data-target="tab-memories">⏳ 回忆</button>
+      <button class="tab-btn" data-target="tab-dominion">👑 权限</button>
+    </div>
+    <div class="tab-content-wrapper">
+      <div id="tab-world" class="tab-content active"></div>
+      <div id="tab-ryukin" class="tab-content"></div>
+      <div id="tab-wardrobe" class="tab-content"></div>
+      <div id="tab-secrets" class="tab-content"></div>
+      <div id="tab-relations" class="tab-content"></div>
+      <div id="tab-wishes" class="tab-content"></div>
+      <div id="tab-memories" class="tab-content"></div>
+      <div id="tab-dominion" class="tab-content"></div>
+    </div>
+    <div class="minds-eye-overlay"></div>
+  </div>
+  <script>
+    function safeGet(data, path, defaultValue = '--') { const value = _.get(data, path); return (value === null || typeof value === 'undefined' || value === '') ? defaultValue : value; }
+    function createProgressBar(label, value, min, max) { const numericValue = parseInt(value) || 0; const percentage = Math.max(0, Math.min(100, ((numericValue - min) / (max - min)) * 100)); return ` <div class="property-item single-line" style="gap: 5px;"> <div style="width:100%; display: flex; justify-content: space-between;"> <span class="property-label">${label}</span> <span class="property-value">${value}</span> </div> <div class="progress-bar-container"> <div class="progress-bar" style="width: ${percentage}%;"></div> </div> </div> `; }
+    
+    function init() {
+      try {
+        const $card = $('.ryukin-status-card');
+        if (!$card.length) return;
+
+        const all_variables = getAllVariables();
+        const data = _.get(all_variables, 'stat_data', {});
+
+        try {
+            const timeString = safeGet(data, '世界.时间[0]', '12:00');
+            const timeNumeric = parseInt(timeString.replace(':', ''), 10);
+            $card.toggleClass('theme-night', timeNumeric >= 1800 || timeNumeric < 600);
+        } catch (timeError) {
+            console.error('Ryukin UI: Day/Night theme error:', timeError);
+        }
+
+        renderWorldTab(data, $('#tab-world'));
+        renderRyukinTab(data, $('#tab-ryukin'));
+        renderWardrobeTab(data, $('#tab-wardrobe'));
+        renderSecretsTab(data, $('#tab-secrets'));
+        renderRelationsTab(data, $('#tab-relations'));
+        renderWishesTab(data, $('#tab-wishes'));
+        renderMemoriesTab(data, $('#tab-memories'));
+        renderDominionTab(data, $('#tab-dominion'));
+
+        const tattooState = safeGet(data, '身体状态.牡丹纹身状态[0]', '静谧含苞');
+        const dominionMode = safeGet(data, '支配状态.当前模式[0]', '自主');
+        
+        $card.attr('data-tattoo-state', tattooState);
+        $card.attr('data-dominion-mode', dominionMode);
+        $('#dominion-mode-text').text(dominionMode);
+        
+        bindEvents();
+        
+        if (!$('.tab-btn.active').length) {
+            $('.tab-btn').first().addClass('active');
+            $('.tab-content').first().addClass('active');
+        }
+
+      } catch (e) {
+        console.error('Ryukin UI Initialization Error:', e);
+        const $errorCard = $('.ryukin-status-card');
+        if ($errorCard.length) {
+            $errorCard.html('<div class="dominion-warning" style="display:flex;">UI渲染失败，请检查F12控制台。</div>');
+        }
+      }
+    }
+
+    function renderWorldTab(data, $container) { const worldData = _.get(data, '世界', {}); const worldHtml = `<div class="section-title">宏观环境</div><div class="property-grid grid-col-3"><div class="property-item"><span class="property-label">📅 日期</span><span class="property-value">${safeGet(worldData, '日期[0]')}</span></div><div class="property-item"><span class="property-label">曜日</span><span class="property-value">${safeGet(worldData, '星期[0]')}</span></div><div class="property-item"><span class="property-label">🌤️ 天气</span><span class="property-value">${safeGet(worldData, '天气[0]')}</span></div><div class="property-item"><span class="property-label">🌡️ 温度</span><span class="property-value">${safeGet(worldData, '室外温度[0]')}</span></div><div class="property-item"><span class="property-label">📍 地点</span><span class="property-value">${safeGet(worldData, '当前地点[0]')}</span></div></div><div class="section-title">状态简报</div><div class="property-item single-line"><span class="property-label">当前行为:</span><span class="property-value" style="margin-top: 5px;">${safeGet(worldData, '当前行为[0]', '无')}</span></div><div class="property-item single-line" style="margin-top: 10px;"><span class="property-label">下一步打算:</span><span class="property-value" style="margin-top: 5px; font-style: italic; color: var(--text-color-secondary);">${safeGet(worldData, '下一步打算[0]', '无')}</span></div>`; $container.html(worldHtml); }
+    function renderRyukinTab(data, $container) { const coreData = _.get(data, '琉金之心', {}); const bodyData = _.get(data, '身体状态', {}); const emotions = _.get(coreData, '情感光谱', {}); const ryukinHtml = `<div class="ryukin-core-grid"><div class="persona-dashboard"><div class="section-title">人格核心</div><div class="property-item"><span class="property-label">身份侧重</span><span class="property-value persona-value">${safeGet(coreData, '当前身份侧重[0]')}</span></div><div class="property-item"><span class="property-label">当前气质</span><span class="property-value persona-value">${safeGet(coreData, '当前气质[0]')}</span></div>${createProgressBar('惊喜能量', safeGet(coreData, '惊喜能量[0]', 0), 0, 100)}</div><div class="tattoo-status-container"><svg id="peony-tattoo" viewBox="0 0 100 100"><defs><g id="petal-main"><path class="tattoo-path-template" d="M 0 -22 C -15 -15, -15 15, 0 22 C 15 15, 15 -15, 0 -22 Z"/><path class="tattoo-path-template" d="M 0 -12 C -8 -8, -8 8, 0 12 C 8 8, 8 -8, 0 -12 Z"/></g></defs><g id="petals"><use href="#petal-main" id="p1" /><use href="#petal-main" id="p2" /><use href="#petal-main" id="p3" /><use href="#petal-main" id="p4" /><use href="#petal-main" id="p5" /><use href="#petal-main" id="p6" /><use href="#petal-main" id="p7" /><use href="#petal-main" id="p8" /></g><g id="peony-core"><circle class="tattoo-path-template" cx="50" cy="50" r="3" stroke-width="1.5"/></g></svg><div class="tattoo-desc">牡丹纹身: <span id="tattoo-state-text">${safeGet(bodyData, '牡丹纹身状态[0]')}</span></div></div></div><div class="section-title">情感光谱</div><div class="property-grid grid-col-2">${createProgressBar('愉悦度', safeGet(emotions, '愉悦度[0]', 0), -100, 100)}${createProgressBar('安心度', safeGet(emotions, '安心度[0]', 0), -100, 100)}${createProgressBar('激情度', safeGet(emotions, '激情度[0]', 0), -100, 100)}${createProgressBar('思念度', safeGet(emotions, '思念度[0]', 0), -100, 100)}</div><div class="whisper-box"><span class="property-label">内心独白:</span><p style="margin: 5px 0 0 0;">${safeGet(coreData, '内心独白[0]', '...')}</p></div>`; $container.html(ryukinHtml); }
+    function renderWardrobeTab(data, $container) { const outfit = safeGet(data, '衣橱.当前着装[0]', {}); let wardrobeHtml = ''; const displayConfig = [ { key: '上衣', label: '上衣', icon: '👚' }, { key: '下衣', label: '下衣', icon: '👖' }, { key: '内衣', label: '内衣', icon: '👙' }, { key: '内裤', label: '内裤', icon: '🩲' }, { key: '袜子', label: '袜子', icon: '🧦' }, { key: '鞋子', label: '鞋子', icon: '👠' }, { key: '帽子', label: '帽子', icon: '👒' }, { key: '发饰', label: '发饰', icon: '🎀' }, { key: '首饰', label: '首饰 (颈部)', icon: '💎' }, { key: '耳饰', label: '耳饰', icon: '👂' }, { key: '戒指', label: '戒指', icon: '💍' }, { key: '手环', label: '手环', icon: '✨' }, { key: '手套', label: '手套', icon: '🧤' }, { key: '配饰', label: '配饰 (其他)', icon: '👜' } ]; if (typeof outfit === 'object' && outfit !== null) { displayConfig.forEach(item => { const value = outfit[item.key]; if (value && value !== '无') { wardrobeHtml += `<div class="property-item"><div class="property-label">${item.icon} ${item.label}</div><span class="property-value">${value}</span></div>`; } }); } const finalHtml = `<div class="section-title">当前着装：${safeGet(outfit, '套装名称', '未知套装')}</div><div class="property-grid grid-col-2">${wardrobeHtml || '<div class="empty-wish-text">未获取到详细穿着信息。</div>'}</div><div class="whisper-box" style="margin-top: 20px;">更换服装请使用[指令]或在对话中明确提出。</div>`; $container.html(finalHtml); }
+    
+    // --- 旗舰版 renderSecretsTab 函数 ---
+    function renderSecretsTab(data, $container) {
+        const bodyData = _.get(data, '身体状态', {});
+        const privateData = _.get(data, '私密状态', {});
+        const nanoData = _.get(data, '纳米机器系统', {});
+
+        const pages = {
+            '核心状态': [
+                { key: '体温', data: bodyData, icon: '🌡️' }, { key: '心率', data: bodyData, icon: '❤️' },
+                { key: 'nipples', label: '乳頭', data: privateData, icon: '🌸' }, { key: 'vagina', label: '小穴', data: privateData, icon: '💧' },
+                { key: 'anus', label: '肛門', data: privateData, icon: '⭕' }, { key: 'mouth', label: '口腔', data: privateData, icon: '👄' }
+            ],
+            '进阶状态': [
+                { key: 'clitoris', label: '陰蒂', data: privateData, icon: '✨' }, { key: 'uterus', label: '子宮', data: privateData, icon: '⚜️' },
+                { key: 'skin_flush', label: '肌膚潮紅', data: privateData, icon: '🎨' }, { key: 'muscle_tension', label: '肌肉張力', data: privateData, icon: '💪' },
+                { key: 'trembling_level', label: '身體顫抖', data: privateData, icon: '🌀' }, { key: 'breathing_pattern', label: '呼吸模式', data: privateData, icon: '🌬️' },
+                { key: 'stomach', label: '腸胃', data: privateData, icon: '🍩' }
+            ],
+            '特殊系统': [
+                { key: '牡丹纹身状态', label: '牡丹紋身', data: bodyData, icon: '🌺' }, { key: '腰间印记状态', label: '腰間印記', data: bodyData, icon: '║█║' },
+                { key: 'nanomachine_activity', label: '納米機活性', data: nanoData, icon: '⚙️' }, { key: 'regeneration_speed', label: '再生速度', data: nanoData, icon: '⚡' },
+                { key: 'period', label: '经期状态', data: privateData, icon: '📅' }, { key: 'fertility', label: '受孕可能', data: privateData, icon: '🧬' },
+                { key: 'lactation_status', label: '泌乳状态', data: privateData, icon: '🥛' }, { key: 'pregnancy_status', label: '妊娠状态', data: privateData, icon: '🤰' }
+            ]
+        };
+        
+        let pagerBtns = '';
+        let pagerContent = '';
+        let isFirstPage = true;
+
+        for (const pageName in pages) {
+            pagerBtns += `<button class="secrets-pager-btn ${isFirstPage ? 'active' : ''}" data-page="${pageName}">${pageName}</button>`;
+            let pageItems = '';
+            pages[pageName].forEach(item => {
+                const label = item.label || item.key;
+                const value = safeGet(item.data, `${item.key}[0]`);
+                pageItems += `<div class="property-item"><span class="property-label">${item.icon} ${label}</span><span class="property-value">${value}</span></div>`;
+            });
+
+            pagerContent += `<div class="secrets-page ${isFirstPage ? 'active' : ''}" id="page-${pageName}"><div class="property-grid grid-col-2">${pageItems}</div></div>`;
+            isFirstPage = false;
+        }
+
+        const finalHtml = `<div class="secrets-pager">${pagerBtns}</div><div class="secrets-content-wrapper">${pagerContent}</div>`;
+        $container.html(finalHtml);
+    }
+
+    function renderRelationsTab(data, $container) { const relationData = _.get(data, '关系', {}); const userRelation = _.get(relationData, '与主人的关系', {}); const pastRelation = _.get(relationData, '与林雨晴的记忆', {}); const relationsHtml = `<div class="section-title">与主人的羁绊</div><div class="relation-card"><div class="relation-item"><span class="property-label">好感度</span><span class="relation-value infinity">∞</span></div>${createProgressBar('依赖度', safeGet(userRelation, '依赖度[0]', 0), 0, 100)}<div class="relation-item" style="margin-top: 10px;"><span class="property-label">主导权</span><span class="property-value persona-value">${safeGet(userRelation, '主导权[0]')}</span></div></div><div class="section-title">与过去的连接</div><div class="relation-card">${createProgressBar('记忆融合度', safeGet(pastRelation, '记忆融合度[0]', 0), 0, 100)}<div class="relation-item full-width" style="margin-top: 10px;"><span class="property-label">当前影响:</span><span class="property-value" style="margin-top: 5px;">${safeGet(pastRelation, '当前影响[0]')}</span></div></div>`; $container.html(relationsHtml); }
+    function renderWishesTab(data, $container) { const wishes = safeGet(data, '琉金之心.愿望清单[0]', []); const progress = _.get(data, '愿望进度', {}); let wishesHtml = `<div class="section-title">主人的愿望清单</div>`; if (Array.isArray(wishes) && wishes.length > 0) { wishes.forEach(wish => { const wishName = typeof wish === 'string' ? wish.replace('【学习中】', '') : '未知愿望'; const progressValue = safeGet(progress, `${wishName}[0]`, 0); wishesHtml += `<div class="wish-item"><div class="wish-header"><span class="wish-text">${wish}</span><span class="wish-progress-text">${progressValue}%</span></div><div class="progress-bar-container"><div class="progress-bar" style="width: ${progressValue}%;"></div></div></div>`; }); } else { wishesHtml += `<div class="empty-wish-text">当前没有需要实现的愿望。</div>`; } wishesHtml += `<div class="whisper-box" style="margin-top: 20px;">通过[许愿：xxx]指令来添加新的愿望。</div>`; $container.html(wishesHtml); }
+    function renderMemoriesTab(data, $container) { const flags = _.get(data, '事件旗帜', {}); const memoryList = [ { flag: '回忆_童年雨天', title: '童年雨天', icon: '🌧️', desc: '关于雨天、恐惧与一个温暖的怀抱。' }, { flag: '回忆_名字的意义', title: '名字的意义', icon: '📜', desc: '“愿你的灵魂如琉璃般纯净，生命如黄金般璀璨。”' }, { flag: '回忆_母亲的菜', title: '母亲的菜', icon: '🍲', desc: '一道既熟悉又陌生的、刻在灵魂深处的家常菜味道。' }, ]; let memoriesHtml = `<div class="section-title">记忆碎片</div><div class="memory-grid">`; memoryList.forEach(mem => { const isUnlocked = safeGet(flags, `${mem.flag}[0]`, false); memoriesHtml += `<div class="memory-fragment ${isUnlocked ? 'unlocked' : 'locked'}"><div class="fragment-icon">${isUnlocked ? mem.icon : '❓'}</div><div class="fragment-title">${mem.title}</div><div class="property-value" style="text-align:left; word-break:break-word;">${isUnlocked ? mem.desc : '记忆被封锁中...'}</div></div>`; }); memoriesHtml += `</div><div class="whisper-box" style="margin-top: 20px;">通过特定的对话和互动，可以唤醒琉金被尘封的记忆。</div>`; $container.html(memoriesHtml); }
+    function renderDominionTab(data, $container) { const dominionData = _.get(data, '支配状态', {}); const currentMode = safeGet(dominionData, '当前模式[0]', '自主'); const modes = ['自主', '指令执行', '深度沉睡', '认知扭曲', '人偶化']; let radioButtons = ''; modes.forEach(mode => { const isChecked = mode === currentMode ? 'checked' : ''; radioButtons += `<label><input type="radio" name="dominion-mode" value="${mode}" ${isChecked}> ${mode}</label>`; }); const dominionHtml = `<div class="section-title">支配模式控制</div><div class="dominion-warning" style="display: ${currentMode === '自主' ? 'none' : 'flex'}">⚠️ 当前处于非自主模式，人格与行为可能被覆盖。</div><div class="control-description">选择以覆盖琉金的当前状态。此操作将生成指令，请在聊天框发送以生效。</div><div class="dominion-control-group" id="dominion-mode-selector">${radioButtons}</div><div class="section-title">模式描述</div><div class="whisper-box">${safeGet(dominionData, '模式描述[0]', '...')}</div>`; $container.html(dominionHtml); }
+    
+    // --- 旗舰版 bindEvents 函数 ---
+    function bindEvents() { 
+        const $document = $(document);
+        // 主标签页切换
+        $document.off('click.ryukinTabs').on('click.ryukinTabs', '.tab-btn', function() { 
+            const $this = $(this);
+            if($this.hasClass('active')) return; 
+            $('.tab-btn').removeClass('active'); 
+            $this.addClass('active'); 
+            const target = $this.data('target'); 
+            $('.tab-content').removeClass('active'); 
+            $('#' + target).addClass('active'); 
+        }); 
+        // “秘密”标签页内部翻页
+        $document.off('click.ryukinPager').on('click.ryukinPager', '.secrets-pager-btn', function() {
+            const $this = $(this);
+            if ($this.hasClass('active')) return;
+            $('.secrets-pager-btn').removeClass('active');
+            $this.addClass('active');
+            const pageId = '#page-' + $this.data('page');
+            $('.secrets-page').removeClass('active');
+            $(pageId).addClass('active');
+        });
+        // “权限”标签页交互
+        $document.off('change.ryukinDominion').on('change.ryukinDominion', 'input[name="dominion-mode"]', function() { 
+            const selectedMode = $(this).val(); 
+            const command = `[指令：切换支配模式为“${selectedMode}”]` ; 
+            prompt('指令已生成！请复制以下全部指令，并在聊天框中发送以生效：', command); 
+        }); 
+        // 核心重绘事件
+        $document.off('rerender-state-bar.ryukinCore').on('rerender-state-bar.ryukinCore', init); 
+    }
+
+    $(() => { errorCatched(init)(); });
+  </script>
+</body>
